@@ -13,7 +13,15 @@ DB_CONFIG = {
     'banco': '',
     'usuario': '',
     'senha': ''
-    }
+    },
+
+    # Realizar a conexão no servidor do Outlook
+    "email": { 
+    'smtp_server':'smtp-mail.outlook.com',
+    'port': '587', 
+    'email_user':'inseri seu email aqui',
+    'email_password':'senha aqui'
+    },
 }
 
 
