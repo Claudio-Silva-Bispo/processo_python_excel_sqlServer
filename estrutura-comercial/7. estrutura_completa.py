@@ -9,10 +9,6 @@ import pandas as pd
 import os
 import shutil
 
-# Enviar informações em blocos
-from sqlalchemy import create_engine
-from concurrent.futures import ThreadPoolExecutor
-
 # Personalização das funções e documentar com tipos esperados e formatações necessárias que ajudem outros usuários.
 from typing import Literal, List, Any
 
@@ -26,28 +22,16 @@ from itertools import product
 
 from joblib import Parallel, delayed
 
-import autenticacao_banco
+import autenticacoes
 
 # Para encerrar o processo do excel uma vez que eu tiver o dataframe
 import psutil
 import time
 
-# Chamar a classe que vai procurar os arquivos na pasta
-import ProcessadorExcel 
-
-# Para manipular o arquivo do excel
-import ManipuladorDataFrame
-
-# Acessar o banco de dados
-import ConectarBanco
-
-# Inserir dados no banco
-import InserirDadosBanco
-
 #--------------------( Classe para manipular os arquivos no excel )--------------------#
 class ProcessadorExcel:
 
-    def __init__(self, caminho_pasta : Literal[''], caminho_destino: str):
+    def __init__(self, caminho_pasta : Literal['inserir caminho do arquivo aqui'], caminho_destino: str):
         self.caminho_pasta = caminho_pasta
         self.caminho_destino = caminho_destino
         self.dataframes = {}
@@ -96,10 +80,21 @@ class ProcessadorExcel:
                     print(f"Arquivo {arquivo_completo} removido com sucesso.")
                 except PermissionError:
                     print(f"Erro ao remover {arquivo_completo}.")
+
+class ManipuladorDataFrame:
+    def __init__(self, dataframe):
+        self.dataframe = dataframe
+
+    def exibir(self):
+        print(self.dataframe)
+
+    def manipular(self):
+        # Adicione aqui as funcionalidades de manipulação - Se precisar fazer mais alguma coisa. Por agora não precisa.
+        pass
         
 # Passar aqui caminho onde os arquivos ficarão armazenados.
-caminho_pasta = fr''
-caminho_destino = fr''
+caminho_pasta = fr'inserir rota aqui'
+caminho_destino = fr'inserir rota aqui'
 
 # Chamar a função principal ai de cima para executar a separação de cada aba em arquivos dataframe
 processador = ProcessadorExcel(caminho_pasta, caminho_destino)
@@ -109,8 +104,7 @@ try:
     dataframes = processador.carregar_abas()
     for nome_aba, df in dataframes.items():
         #print(f"Manipulando a aba: {nome_aba}")
-        manipulador = ManipuladorDataFrame.ManipuladorDataFrame(df)
-        #manipulador.exibir() 
+        manipulador = ManipuladorDataFrame(df)
 except FileNotFoundError as e:
     print(e)
 
@@ -118,7 +112,7 @@ except FileNotFoundError as e:
 class BancoDados:
 
     def __init__(self, dataframe, nome_tabela: str, nome_conexao: str):
-        self.db_config = autenticacao_banco.DB_CONFIG
+        self.db_config = autenticacoes.DB_CONFIG
         self.dataframe = dataframe 
         self.nome_tabela = nome_tabela
         self.nome_conexao = nome_conexao  # Novo atributo para armazenar o nome da conexão
@@ -188,34 +182,39 @@ class BancoDados:
             cursor.close()
             conexao.close()
 
-# Inserir os dados conforme a lista de tabelas e seus dataframes.
-tabelas_e_dataframes = [
-    ('RESUMO', dataframes.get('RESUMO')),
-    ('CANAL', dataframes.get('CANAL')),
-    ('HEAD_CANAL', dataframes.get('HEAD_CANAL')),
-    ('VERTICAL', dataframes.get('VERTICAL')),
-    ('HEAD_VERTICAL', dataframes.get('HEAD_VERTICAL')),
-    ('SUB_VERTICAL', dataframes.get('SUB_VERTICAL')),
-    ('HEAD_SUB_VERTICAL', dataframes.get('HEAD_SUB_VERTICAL')),
-    ('FILIAL', dataframes.get('FILIAL')),
-    ('PRODUTOR', dataframes.get('PRODUTOR')),
-    ('DEPARA_LINHA_NEGOCIO', dataframes.get('DEPARA_LINHA_NEGOCIO'))
-]
+def funcao_principal():
 
-# Insira os dados conforme a lista de tabelas e seus dataframes.
-for nome_tabela, dataframe in tabelas_e_dataframes:
-    if dataframe is not None: 
-        nome_conexao = "gestao_comercial"
-        inserir_dados = BancoDados(dataframe, nome_tabela, nome_conexao)
-        inserir_dados.inserir()
-        #print(f"Dados inseridos na tabela: {nome_tabela}")
-    #else:
-        #print(f"DataFrame para a tabela {nome_tabela} não encontrado.")
+    # Inserir os dados conforme a lista de tabelas e seus dataframes.
+    tabelas_e_dataframes = [
+        ('RESUMO', dataframes.get('RESUMO')),
+        ('CANAL', dataframes.get('CANAL')),
+        ('HEAD_CANAL', dataframes.get('HEAD_CANAL')),
+        ('VERTICAL', dataframes.get('VERTICAL')),
+        ('HEAD_VERTICAL', dataframes.get('HEAD_VERTICAL')),
+        ('SUB_VERTICAL', dataframes.get('SUB_VERTICAL')),
+        ('HEAD_SUB_VERTICAL', dataframes.get('HEAD_SUB_VERTICAL')),
+        ('FILIAL', dataframes.get('FILIAL')),
+        ('PRODUTOR', dataframes.get('PRODUTOR')),
+        ('DEPARA_LINHA_NEGOCIO', dataframes.get('DEPARA_LINHA_NEGOCIO'))
+    ]
 
-# Enviar somente a base consolidada
-base_consolidada = dataframes.get('BASE_CONSOLIDADA')
-base_consolidada['DATA_BASE'] = pd.to_datetime(base_consolidada['DATA_BASE'], errors='coerce')
-inserir_dados = BancoDados(dataframe, nome_tabela, nome_conexao)
+    # Insira os dados conforme a lista de tabelas e seus dataframes.
+    for nome_tabela, dataframe in tabelas_e_dataframes:
+        if dataframe is not None: 
+            nome_conexao = "gestao_comercial"
+            inserir_dados = BancoDados(dataframe, nome_tabela, nome_conexao)
+            inserir_dados.inserir()
+            #print(f"Dados inseridos na tabela: {nome_tabela}")
+        #else:
+            #print(f"DataFrame para a tabela {nome_tabela} não encontrado.")
 
-limpar = ProcessadorExcel(caminho_pasta='', caminho_destino=caminho_destino)
-limpar.limpar_pasta_destino()
+    # Enviar somente a base consolidada
+    base_consolidada = dataframes.get('BASE_CONSOLIDADA')
+    base_consolidada['DATA_BASE'] = pd.to_datetime(base_consolidada['DATA_BASE'], errors='coerce')
+    inserir_dados = BancoDados(dataframe, nome_tabela, nome_conexao)
+
+    limpar = ProcessadorExcel(caminho_pasta='', caminho_destino=caminho_destino)
+    limpar.limpar_pasta_destino()
+
+funcao_principal
+print("Processo para criar a estrutura da Gestão Comercial finalizou.")
