@@ -1,0 +1,83 @@
+# Para manipulação do banco de dados
+# Instalar: pip install pyodbc
+import pyodbc
+
+# Autententicar
+import autenticacoes
+
+# Para manipulação do arquivo em Excel
+import pandas as pd
+
+
+class BancoDados:
+
+    def __init__(self, dataframe, nome_tabela: str, nome_conexao: str):
+        self.db_config = autenticacoes.DB_CONFIG
+        self.dataframe = dataframe 
+        self.nome_tabela = nome_tabela
+        self.nome_conexao = nome_conexao  # Novo atributo para armazenar o nome da conexão
+
+    def conectar(self) -> pyodbc.Connection:
+        try:
+            config = self.db_config[self.nome_conexao]
+        except KeyError:
+            print(f"Erro: a conexão '{self.nome_conexao}' não está configurada.")
+            print("Chaves disponíveis:", self.db_config.keys())
+            raise  # Re-raise the exception to stop execution if needed
+
+        conexao_str = (
+            f"DRIVER={config['driver']};"
+            f"SERVER={config['servidor']};"
+            f"DATABASE={config['banco']};"
+            f"UID={config['usuario']};"
+            f"PWD={config['senha']}"
+        )
+        return pyodbc.connect(conexao_str)
+
+    def inserir(self):
+        if isinstance(self.dataframe, pd.DataFrame) and not self.dataframe.empty:
+            self._criar()
+            self._inserir_dataframe()
+
+    def _criar(self):
+        colunas = ', '.join([f"{col} NVARCHAR(255)" for col in self.dataframe.columns]) 
+        query = f"IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{self.nome_tabela}') " \
+                f"CREATE TABLE {self.nome_tabela} ({colunas})"
+        
+        conexao = self.conectar()
+        cursor = conexao.cursor()
+        
+        try:
+            cursor.execute(query)
+            conexao.commit()
+            print(f"Tabela '{self.nome_tabela}' verificada/criada com sucesso.")
+        except Exception as e:
+            print(f"Erro ao criar a tabela: {e}")
+        finally:
+            cursor.close()
+            conexao.close()
+
+    def _inserir_dataframe(self):
+        conexao = self.conectar()
+        cursor = conexao.cursor()
+        
+        try:
+            delete_query = f"TRUNCATE TABLE {self.nome_tabela}"
+            cursor.execute(delete_query)
+            conexao.commit()
+            
+            print(f"Todos os registros antigos da tabela '{self.nome_tabela}' foram apagados.")
+
+            colunas = ', '.join(self.dataframe.columns)
+            valores = ', '.join(['?' for _ in range(len(self.dataframe.columns))])
+            insert_query = f"INSERT INTO {self.nome_tabela} ({colunas}) VALUES ({valores})"
+
+            for index, linha in self.dataframe.iterrows():
+                cursor.execute(insert_query, tuple(linha))
+            conexao.commit()
+            print(f"Inseridos {len(self.dataframe)} registros na tabela {self.nome_tabela}.")
+        except Exception as e:
+            print(f"Erro ao inserir os dados: {e}")
+        finally:
+            cursor.close()
+            conexao.close()
