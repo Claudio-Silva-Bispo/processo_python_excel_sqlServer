@@ -1,5 +1,3 @@
-# Arquivo que terá minhas credenciais do banco para acesso.
-
 # Configurações de conexão com o banco de dados SQL Server
 DB_CONFIG = {
     "dw_producao" : {
@@ -15,7 +13,15 @@ DB_CONFIG = {
     'banco': '',
     'usuario': '',
     'senha': ''
-    }
+    },
+
+    # Realizar a conexão no servidor do Outlook
+    "email": { 
+    'smtp_server':'smtp-mail.outlook.com',
+    'port': '587', 
+    'email_user':'inserir email aqui',
+    'email_password':'senha do email'
+    },
 }
 
 
