@@ -56,5 +56,5 @@ def funcao_principal():
     limpar.limpar_pasta_destino()
     print("Processo para criar a estrutura da Gestão Comercial finalizou.")
 
-funcao_principal()
+#funcao_principal() # se for para rodar só ela, descomente aqui. Caso contrário, ela será chamada no processo principal global.
 print("Processo para criar a estrutura da Gestão Comercial finalizou.")
