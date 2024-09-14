@@ -66,7 +66,7 @@ class ProcessadorExcel:
     def fechar_processos_excel(self):
         for proc in psutil.process_iter(attrs=['pid', 'name']):
             if proc.info['name'] == "EXCEL.EXE":
-                print(f"Encerrando processo Excel com PID: {proc.info['pid']}")  # Debug
+                print(f"Encerrando processo Excel com PID: {proc.info['pid']}")
                 proc.terminate()  # Usar terminate() é mais seguro
 
     def limpar_pasta_destino(self):
@@ -144,8 +144,8 @@ class ProcessadorExcel:
         self.fechar_processos_excel()
         self.limpar_pasta_destino()
 
-        banco_gestao_comercial = BancoDados.BancoDeDados(dataframe=base_fria_limpo, nome_tabela='GESTAO_COMERCIAL')
-        banco_producao = BancoDados.BancoDeDados(dataframe=base_fria_limpo, nome_tabela='DW_PRODUCAO')
+        banco_gestao_comercial = BancoDados.BancoDeDados(dataframe=base_fria_limpo, nome_tabela='inserir aqui')
+        banco_producao = BancoDados.BancoDeDados(dataframe=base_fria_limpo, nome_tabela='inserir aqui')
 
         query_linha_negocio = """
         SELECT
@@ -153,7 +153,7 @@ class ProcessadorExcel:
             LinhaNegocio as LINHA_NEGOCIO
         FROM [database].[dbo].[tabela]
         """
-        linha_negocio = banco_producao.consultar(query_linha_negocio, 'dw_producao')
+        linha_negocio = banco_producao.consultar(query_linha_negocio, 'inserir aqui')
         linha_negocio['ID_LINHA_NEGOCIO'] = linha_negocio['ID_LINHA_NEGOCIO'].astype(str)
         linha_negocio
 
@@ -161,7 +161,7 @@ class ProcessadorExcel:
         SELECT *
         FROM [database].[dbo].[tabela]
         """
-        dim_produtores = banco_producao.consultar(query_produtores, 'dw_producao')
+        dim_produtores = banco_producao.consultar(query_produtores, 'inserir aqui')
         dim_produtores['id_pessoa'] = dim_produtores['id_pessoa'].astype(str)
         dim_produtores
 
@@ -169,9 +169,9 @@ class ProcessadorExcel:
         SELECT *
         FROM [database].[dbo].[tabela]
         """
-        dim_corretores = banco_producao.consultar(query_corretores, 'dw_producao')
+        dim_corretores = banco_producao.consultar(query_corretores, 'inserir aqui')
         dim_corretores
-        dim_corretores['id_pessoa'] = dim_corretores['id_pessoa'].astype(str)
+        dim_corretores['id_Pessoa'] = dim_corretores['id_Pessoa'].astype(str)
         dim_corretores
 
         tabelas = [
@@ -184,7 +184,7 @@ class ProcessadorExcel:
             SELECT *
             FROM [database].[dbo].[{nome_tabela}]
             """
-            return banco_gestao_comercial.consultar(query, 'dw_producao')
+            return banco_gestao_comercial.consultar(query, 'inserir aqui')
 
         for nome_tabela in tabelas:
             df = consultar_tabelas(nome_tabela)
@@ -277,7 +277,7 @@ class ProcessadorExcel:
 
         if 'ID_PESSOA_CORRETOR' in base_fria_limpo.columns:
             base_fria_limpo['ID_PESSOA_CORRETOR'] = base_fria_limpo['ID_PESSOA_CORRETOR'].apply(
-                lambda x: x if x in dim_corretores['id_pessoa'].values else valor_default
+                lambda x: x if x in dim_corretores['id_Pessoa'].values else valor_default
             )
 
         else:
