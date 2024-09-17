@@ -1,6 +1,7 @@
 import datetime
 import os
 import shutil
+import sys
 import psutil
 import time
 import pandas as pd
@@ -8,6 +9,7 @@ from typing import List
 import BancoDados
 import EnviarEmail
 from joblib import Parallel, delayed
+import script_html
 
 class ProcessadorExcel:
     def __init__(self, caminho_pasta_origem: str, caminho_destino: str):
@@ -23,11 +25,15 @@ class ProcessadorExcel:
         
         if not arquivos:
             print("Nenhum arquivo Excel encontrado na pasta!")
-            assunto = 'Processo Base Fria - Erro para encontrar o arquivo'
-            corpo = fr'O primeiro processo falhou ao encontrar os arquivos na pasta de origem: {self.caminho_pasta_origem}'
-            destinatario = ''
-            copias = ''
-            EnviarEmail.enviar_email(assunto=assunto, destinatario=destinatario, copias=copias, corpo=corpo, arquivo_anexo='')
+            assunto = script_html.suporte_email.get('dados_falha').get('assunto')
+            destinatario =script_html.suporte_email.get('dados_falha').get('destinatario')
+            copias = script_html.suporte_email.get('dados_falha').get('copias')
+            corpo = 'Processo foi interrompido na etapa inicial de procurar o arquivo.'
+            corpo_html = script_html.html_falha
+
+            EnviarEmail.enviar_email(assunto=assunto, destinatario=destinatario, copias=copias, corpo=corpo, corpo_html=corpo_html, arquivo_anexo='',caminho_anexo_xlsx='', nome_arquivo_xlsx='')
+
+            sys.exit(f"Não foi possível encontrar o arquivo na pasta {self.caminho_pasta_origem}")
         
         return arquivos
 
@@ -40,23 +46,32 @@ class ProcessadorExcel:
                 print(f"Arquivo {os.path.basename(arquivo)} copiado com sucesso para {self.caminho_destino}.")
             except Exception as e:
                 print(f"Erro ao copiar {arquivo}: {e}. Enviar e-mail avisando que deu errado")
-                assunto = 'Processo Base Fria - Erro para copiar os arquivos'
-                corpo = fr'O Segundo processo falhou ao copiar os arquivos na pasta de destino: {self.caminho_destino}'
-                destinatario = ''
-                copias = ''
-                EnviarEmail.enviar_email(assunto=assunto, destinatario=destinatario, copias=copias, corpo=corpo, arquivo_anexo='')
+                assunto = script_html.suporte_email.get('dados_falha').get('assunto')
+                destinatario =script_html.suporte_email.get('dados_falha').get('destinatario')
+                copias = script_html.suporte_email.get('dados_falha').get('copias')
+                corpo = 'Processo foi interrompido na segunda etapa de copiar o arquivo para pasta transitória.'
+                corpo_html = script_html.html_falha
+
+                EnviarEmail.enviar_email(assunto=assunto, destinatario=destinatario, copias=copias, corpo=corpo, corpo_html=corpo_html, arquivo_anexo='',caminho_anexo_xlsx='', nome_arquivo_xlsx='')
+
+                sys.exit(f"Não foi possível encontrar o arquivo na pasta {self.caminho_pasta_origem} e copiar na pasta {self.caminho_destino}")
 
     def ler_e_concatenar_arquivos(self) -> pd.DataFrame:
         arquivos_excel = self.procurar_arquivos()
         self.copiar_arquivos(arquivos=arquivos_excel)
         
         if not arquivos_excel:
-            assunto = 'Processo Base Fria - Erro para gerar o dataframe'
-            corpo = 'O Terceiro processo falhou ao encontrar os arquivos e compilar todos para gerar um único dataframe consolidado.'
-            destinatario = ''
-            copias = ''
-            EnviarEmail.enviar_email(assunto=assunto, destinatario=destinatario, copias=copias, corpo=corpo, arquivo_anexo='')
-            return pd.DataFrame()  # Retorna um DataFrame vazio se nenhum arquivo for encontrado e enviar um e-mail avisando que não deu certo
+            assunto = script_html.suporte_email.get('dados_falha').get('assunto')
+            destinatario =script_html.suporte_email.get('dados_falha').get('destinatario')
+            copias = script_html.suporte_email.get('dados_falha').get('copias')
+            corpo = 'Processo foi interrompido na etapa de gerar o dataframe.'
+            corpo_html = script_html.html_falha
+
+            EnviarEmail.enviar_email(assunto=assunto, destinatario=destinatario, copias=copias, corpo=corpo, corpo_html=corpo_html, arquivo_anexo='',caminho_anexo_xlsx='', nome_arquivo_xlsx='')
+
+            sys.exit(f"Não foi possível gerar o dataframe pois os dados na pasta estão com erro.")
+            
+            # return pd.DataFrame()
             
         lista_dfs = [pd.read_excel(arquivo) for arquivo in arquivos_excel]
         consolidado_total = pd.concat(lista_dfs, ignore_index=True)
@@ -66,7 +81,7 @@ class ProcessadorExcel:
     def fechar_processos_excel(self):
         for proc in psutil.process_iter(attrs=['pid', 'name']):
             if proc.info['name'] == "EXCEL.EXE":
-                print(f"Encerrando processo Excel com PID: {proc.info['pid']}")
+                print(f"Encerrando processo Excel com PID: {proc.info['pid']}")  # Debug
                 proc.terminate()  # Usar terminate() é mais seguro
 
     def limpar_pasta_destino(self):
@@ -85,8 +100,9 @@ class ProcessadorExcel:
     def manipular_dataframe(self) -> pd.DataFrame:
         self.limpar_pasta_destino() 
         df = self.ler_e_concatenar_arquivos()
+        df.columns = df.columns.str.upper() #novo para teste
 
-        colunas_necessarias = ['id_Apolice', 'cd_apolice', 'id_Endosso', 'nr_endosso', 'id_pessoa_corretor', 'id_produto','id_canal', 'Id_head_canal','id_vertical','id_Head_vertical','id_SUB_vertical','id_Head_Sub_vertical', 'id_filial', 'id_linha_negocio','id_Produtor','mes_referencia']
+        colunas_necessarias = ['ID_APOLICE', 'CD_APOLICE', 'ID_ENDOSSO', 'NR_ENDOSSO', 'ID_PESSOA_CORRETOR', 'ID_PRODUTO','ID_CANAL', 'ID_HEAD_CANAL','ID_VERTICAL','ID_HEAD_VERTICAL','ID_SUB_VERTICAL','ID_HEAD_SUB_VERTICAL', 'ID_FILIAL', 'ID_LINHA_NEGOCIO','ID_PRODUTOR','PREMIO_TARIFARIO','PREMIO_ADICIONAL','TOTAL_PRODUCAO','MES_REFERENCIA']
 
 
         # Primeira validação é verificar se todas as colunas estão presentes no modelo
@@ -110,21 +126,43 @@ class ProcessadorExcel:
             df1 = None
             print("Continuando o processo sem a seleção completa das colunas. Será enviado email para que ajuste os nomes")
             # chamar meu processo do e-mail aqui para enviar os dados
-            assunto = 'Erro no processo de criação da Base Fria - Falta colunas padrões'
-            destinatario = ''
-            copias = ''
-            corpo = "Falha no processo de criação pois alguma coluna foi modificada."
-            EnviarEmail.enviar_email(assunto=assunto, destinatario=destinatario, copias=copias, corpo=corpo)
+            assunto = script_html.suporte_email.get('dados_falha').get('assunto')
+            destinatario =script_html.suporte_email.get('dados_falha').get('destinatario')
+            copias = script_html.suporte_email.get('dados_falha').get('copias')
+            corpo = 'Processo foi interrompido na etapa de consultar os dados pois alguma coluna foi alterada.'
+            corpo_html = script_html.html_falha
+
+            EnviarEmail.enviar_email(assunto=assunto, destinatario=destinatario, copias=copias, corpo=corpo, corpo_html=corpo_html, arquivo_anexo='',caminho_anexo_xlsx='', nome_arquivo_xlsx='')
+
+            sys.exit(f"Processo foi interrompido na etapa de consultar os dados pois alguma coluna foi alterada. Seguem as colunas que estão faltando: {colunas_faltantes}")
 
 
         df1.columns = df1.columns.str.upper()
 
         df2 = df1.astype(str)
+        
+        try:
+            df2 = df2.rename(columns={'TOTAL PRODUÇÃO': 'TOTAL_PRODUCAO'})
+        except KeyError:
+            pass
 
         def remove_zeros(df2):
+            # Colunas a serem ignoradas
+            colunas_ignorar = ['PREMIO_TARIFARIO', 'PREMIO_ADICIONAL', 'TOTAL_PRODUCAO']
+            
+            # Verificar se df2 é um DataFrame válido
+            if not isinstance(df2, pd.DataFrame):
+                raise TypeError("O argumento fornecido não é um DataFrame.")
+            
             for col in df2.columns:
-                if df2[col].str.contains('.0').any():
-                    df2[col] = df2[col].str.replace('.0', '', regex=False)
+                if col not in colunas_ignorar:
+                    # Verificar se a coluna é do tipo string
+                    if pd.api.types.is_string_dtype(df2[col]):
+                        # Verificar se a coluna contém '.0' como parte dos valores
+                        if df2[col].str.contains('.0').any():
+                            # Remover '.0' dos valores da coluna
+                            df2[col] = df2[col].str.replace('.0', '', regex=False)
+            
             return df2
 
         df3 = remove_zeros(df2)
@@ -144,8 +182,8 @@ class ProcessadorExcel:
         self.fechar_processos_excel()
         self.limpar_pasta_destino()
 
-        banco_gestao_comercial = BancoDados.BancoDeDados(dataframe=base_fria_limpo, nome_tabela='inserir aqui')
-        banco_producao = BancoDados.BancoDeDados(dataframe=base_fria_limpo, nome_tabela='inserir aqui')
+        banco_gestao_comercial = BancoDados.BancoDeDados(dataframe=base_fria_limpo, nome_tabela='nome do database aqui')
+        banco_producao = BancoDados.BancoDeDados(dataframe=base_fria_limpo, nome_tabela='nome do database aqu')
 
         query_linha_negocio = """
         SELECT
@@ -153,26 +191,23 @@ class ProcessadorExcel:
             LinhaNegocio as LINHA_NEGOCIO
         FROM [database].[dbo].[tabela]
         """
-        linha_negocio = banco_producao.consultar(query_linha_negocio, 'inserir aqui')
+        linha_negocio = banco_producao.consultar(query_linha_negocio, 'nome do database aqu')
         linha_negocio['ID_LINHA_NEGOCIO'] = linha_negocio['ID_LINHA_NEGOCIO'].astype(str)
-        linha_negocio
 
         query_produtores = """
         SELECT *
-        FROM [database].[dbo].[tabela]
+        FROM [EZZE_DdatabaseW_PRODUCAO].[dbo].[tabela]
         """
-        dim_produtores = banco_producao.consultar(query_produtores, 'inserir aqui')
+        dim_produtores = banco_producao.consultar(query_produtores, 'nome do database aqu')
         dim_produtores['id_pessoa'] = dim_produtores['id_pessoa'].astype(str)
-        dim_produtores
 
         query_corretores = """
         SELECT *
         FROM [database].[dbo].[tabela]
         """
-        dim_corretores = banco_producao.consultar(query_corretores, 'inserir aqui')
+        dim_corretores = banco_producao.consultar(query_corretores, 'nome do database aqu')
         dim_corretores
         dim_corretores['id_Pessoa'] = dim_corretores['id_Pessoa'].astype(str)
-        dim_corretores
 
         tabelas = [
             "CANAL","HEAD_CANAL","VERTICAL","HEAD_VERTICAL","SUB_VERTICAL","HEAD_SUB_VERTICAL","FILIAL"
@@ -184,7 +219,7 @@ class ProcessadorExcel:
             SELECT *
             FROM [database].[dbo].[{nome_tabela}]
             """
-            return banco_gestao_comercial.consultar(query, 'inserir aqui')
+            return banco_gestao_comercial.consultar(query, 'nome do database aqu')
 
         for nome_tabela in tabelas:
             df = consultar_tabelas(nome_tabela)
@@ -219,11 +254,15 @@ class ProcessadorExcel:
                     #print(df)
                 else:
                     print(f"DataFrame para a tabela {tabela} não encontrado.")
-                    assunto = 'Erro no processo de validação da Base Fria'
-                    destinatario = ''
-                    copias = ''
-                    corpo = "Falha no processo de validação das colunas Canal, Vertical, Produtor, Filial, Corretor. Rever processo e saber se alguma consulta com o banco de erro."
-                    EnviarEmail.enviar_email(assunto=assunto, destinatario=destinatario, copias=copias, corpo=corpo)
+                    assunto = script_html.suporte_email.get('dados_falha').get('assunto')
+                    destinatario =script_html.suporte_email.get('dados_falha').get('destinatario')
+                    copias = script_html.suporte_email.get('dados_falha').get('copias')
+                    corpo = 'Falha no processo de validação das colunas Canal, Vertical, Produtor, Filial, Corretor. Rever processo e saber se alguma consulta com o banco de erro.'
+                    corpo_html = script_html.html_falha
+
+                    EnviarEmail.enviar_email(assunto=assunto, destinatario=destinatario, copias=copias, corpo=corpo, corpo_html=corpo_html, arquivo_anexo='',caminho_anexo_xlsx='', nome_arquivo_xlsx='')
+
+                    sys.exit(f"Falha no processo de validação das colunas Canal, Vertical, Produtor, Filial, Corretor. Rever processo e saber se alguma consulta com o banco de erro.")
 
         validar_ids(dataframes, base_fria_limpo=base_fria_limpo)
 
@@ -263,14 +302,11 @@ class ProcessadorExcel:
 
 
         valor_default = '12345678'
-
+        
         if 'ID_PRODUTOR' in base_fria_limpo.columns:
-            base_fria_limpo['ID_PRODUTOR'] = base_fria_limpo['ID_PRODUTOR'].apply(
-                lambda x: x if x in dim_produtores['id_pessoa'].values else valor_default
+            base_fria_limpo['ID_PRODUTOR'] = base_fria_limpo['ID_PRODUTOR'].astype(str).apply(
+                lambda x: x if pd.Series([x]).isin(dim_produtores['id_pessoa'].astype(str)).any() else valor_default
             )
-
-        else:
-            print("'ID_PRODUTOR' não está presente na base_fria. A validação precisa ser feita no BI e no Excel.")
 
 
         valor_default = '0'
@@ -281,7 +317,7 @@ class ProcessadorExcel:
             )
 
         else:
-            print("'ID_PRODUTOR' não está presente na base_fria. A validação precisa ser feita no BI e no Excel.")
+            print("'ID_PESSOA_CORRETOR' não está presente na base_fria. A validação precisa ser feita no BI e no Excel.")
 
         return base_fria_limpo
     
@@ -289,8 +325,8 @@ class ProcessadorExcel:
         base_fria_limpo = self.validar_base()
 
         # Montar a lista de queries conforme você já fez
-
         base_fria_validada = pd.DataFrame(base_fria_limpo)
+        base_fria_validada['DATA_CARGA'] = datetime.datetime.now().strftime("%Y-%m-%d")
         lista_valores_final = base_fria_validada.values.tolist()
 
         querys_full = []
@@ -323,41 +359,52 @@ class ProcessadorExcel:
 
         agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-        assunto = 'Sucesso na atualização da Base Fria - Gestão Comercial'
-        destinatario = ''
-        copias = ''
-        corpo = fr"Foi realizado a atualização da base fria em {agora}"
-        EnviarEmail.enviar_email(assunto=assunto, destinatario=destinatario, copias=copias, corpo=corpo, arquivo_anexo='')
-        df_retorno = pd.DataFrame(lista_execucao_paralela)
+        assunto = script_html.suporte_email.get('dados_sucesso').get('assunto')
+        destinatario =script_html.suporte_email.get('dados_sucesso').get('destinatario')
+        copias = script_html.suporte_email.get('dados_sucesso').get('copias')
+        corpo = f'O processo deu certo e foi atualizado em {agora}'
+        corpo_html = script_html.html_sucesso
+        EnviarEmail.enviar_email(assunto=assunto, destinatario=destinatario, copias=copias, corpo=corpo, corpo_html=corpo_html,nome_arquivo_xlsx ='')
+        
+        #df_retorno = pd.DataFrame(lista_execucao_paralela)
+
+        nova_lista = []
+        for valores in lista_execucao_paralela:
+            for i in valores:
+                nova_lista.append(i)
+        
+        df_retorno = pd.DataFrame(nova_lista)
+        df_retorno = df_retorno[df_retorno[0] =='ERRO']
+        df_retorno = df_retorno.head(1000) # Aqui filtra somente mil mil linhas. 
+
+        # Chamar a função para enviar e-mail com esses casos
+
+        df_retorno.dropna()
+        df_retorno.to_excel('arquivo_erros.xlsx', index=False)
+
     
         return df_retorno
     
     def tratar_erro_final(self):
         df_retorno = self.enviar_dados()
-        arquivo_erro = df_retorno[df_retorno=='ERRO']
+        # arquivo_erro = df_retorno[df_retorno=='ERRO']
+        arquivo_erro = pd.read_excel('arquivo_erros.xlsx', index_col=False)
 
-        import tempfile
+        if arquivo_erro.empty:
+            print("Processo completo da Base Fria foi finalizado!")
+            return
 
-        def salvar_dataframe_em_arquivo_temporario(df: pd.DataFrame) -> str:
-            """ Salva o DataFrame em um arquivo temporário e retorna o caminho do arquivo. """
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as temp_file:
-                df.to_excel(temp_file.name, index=False)
-                return temp_file.name
-            
-        arquivo_temporario = salvar_dataframe_em_arquivo_temporario(arquivo_erro)
         agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        
+        assunto = script_html.suporte_email.get('dados_falha').get('assunto')
+        destinatario =script_html.suporte_email.get('dados_falha').get('destinatario')
+        copias = script_html.suporte_email.get('dados_falha').get('copias')
+        corpo = f'Foi realizado a atualização da base fria em {agora} mas gerou alguns erros. Em anexo o conteúdo que precisa ser tratado e na próxima atualização será ajustado.'
+        corpo_html = script_html.html_falha
+        caminho_anexo = 'arquivo_erros.xlsx'
 
-        # Enviar os erros
-        assunto = 'Tratar os erros gerados na atualização da Base Fria'
-        destinatario = ''
-        copias = ''
-        corpo = fr"Foi realizado a atualização da base fria em {agora} mas gerou alguns erros. Em anexo o conteúdo que precisa ser tratado e na próxima atualização será ajustado."
+        EnviarEmail.enviar_email(assunto=assunto, destinatario=destinatario, copias=copias, corpo=corpo, corpo_html=corpo_html, arquivo_anexo='',caminho_anexo_xlsx=caminho_anexo, nome_arquivo_xlsx='arquivo_erros.xlsx')
 
-        EnviarEmail.enviar_email(
-            assunto=assunto, 
-            destinatario=destinatario, 
-            copias=copias, 
-            corpo=corpo, 
-            arquivo_anexo=arquivo_temporario)
+        # sys.exit(f"Foi realizado a atualização da base fria em {agora} mas gerou alguns erros. Em anexo o conteúdo que precisa ser tratado e na próxima atualização será ajustado.")
 
         return print("Processo completo da Base Fria foi finalizado!")
