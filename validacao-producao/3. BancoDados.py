@@ -148,4 +148,18 @@ print("Dados inseridos com sucesso!")
 
 # Tratar os erros e inserir em um arquivo do excel para enviar no e-mail
 df_retorno = pd.DataFrame(lista_execucao_paralela)
-df_retorno[df_retorno=='ERRO']
+#df_retorno[df_retorno=='ERRO']
+
+nova_lista = []
+for valores in lista_execucao_paralela:
+    for i in valores:
+        nova_lista.append(i)
+
+df_retorno = pd.DataFrame(nova_lista)
+df_retorno = df_retorno[df_retorno[0] =='ERRO']
+df_retorno = df_retorno.head(1000) # Aqui filtra somente mil mil linhas. 
+
+# Chamar a função para enviar e-mail com esses casos
+
+df_retorno.dropna()
+df_retorno.to_excel('arquivo_erros.xlsx', index=False)
