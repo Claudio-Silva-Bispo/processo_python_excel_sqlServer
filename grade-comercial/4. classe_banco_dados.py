@@ -10,21 +10,17 @@ from typing import Literal, List, Any
 import pandas as pd
 
 # Chamar demais componentes
-import autenticacoes
-
-# Para monitorar os erros
-import logging
-
+import Autenticacoes
 
 class BancoDeDados:
-    def __init__(self,dataframe : pd.DataFrame, nome_tabela : Literal['nome_tabela'] ):
+    def __init__(self, nome_tabela : Literal['NOME_DATABASE_EXEMPLO', 'NOME_DATABASE_EXEMPLO_DOIS'] ):
 
         # Carregar configurações de conexão do módulo de autenticação
-        self.db_config = autenticacoes.DB_CONFIG
-        self.dataframe = dataframe
+        self.db_config = Autenticacoes.DB_CONFIG
         self.nome_tabela = nome_tabela
+        self.dataframe = None
     
-    def conectar(self, nome_database: Literal['nome_database', 'nome_database']) -> pyodbc.Connection:
+    def conectar(self, nome_database: Literal['dw_producao', 'gestao_comercial']) -> pyodbc.Connection:
         config = self.db_config[nome_database]
         conexao_str = (
             f"DRIVER={config['driver']};"
@@ -35,12 +31,12 @@ class BancoDeDados:
         )
         return pyodbc.connect(conexao_str)
 
-    def consultar(self, query: str, nome_database: Literal['nome_database', 'nome_database']) -> pd.DataFrame:
+    def consultar(self, query: str, nome_database: Literal['NOME_DATABASE_EXEMPLO', 'NOME_DATABASE_EXEMPLO_DOIS']) -> pd.DataFrame:
         conexao = self.conectar(nome_database)
         try:
             consultar_dados = pd.read_sql(query, conexao)
             if not consultar_dados.empty:
-                print("Dados consultados com sucesso:")
+                print(fr"Dados consultados com sucesso: {query}")
             else:
                 print("Nenhum dado encontrado na consulta.")
         except Exception as e:
@@ -51,11 +47,12 @@ class BancoDeDados:
         
         return consultar_dados
     
-    def inserir(self, pacotes: List[List[str]]) -> List[List[Any]]:
+    def inserir(self, dataframe:pd.DataFrame, pacotes: List[List[str]]) -> List[List[Any]]:
+        self.dataframe = dataframe
         if isinstance(self.dataframe, pd.DataFrame) and not self.dataframe.empty:
             self._criar()
             self._truncar()
-            return self._inserir(pacotes)
+            return self._inserir_dados(pacotes)
             
 
     def _criar(self):
@@ -78,7 +75,7 @@ class BancoDeDados:
 
     def _truncar(self):
         try:
-            conexao = self.conectar('nome_database')
+            conexao = self.conectar('gestao_comercial')
             cursor = conexao.cursor()
             delete_query = f"TRUNCATE TABLE {self.nome_tabela}"
             cursor.execute(delete_query)
@@ -90,18 +87,19 @@ class BancoDeDados:
             cursor.close()
             conexao.close()
 
-    def inserir(self, pacote: List[str]) -> List[List[Any]]:
+    def _inserir_dados(self, pacote: List[str]) -> List[List[Any]]:
         logs = []
         try:
-            conexao = self.conectar('nome_database')
+            conexao = self.conectar('gestao_comercial')
             cursor = conexao.cursor()
             for i, insert in enumerate(pacote):
                 try:
                     cursor.execute(insert)
                     logs.append(['SUCESSO', "OK", "OK"])
+                    print("Dados inseridos {i}")
                 except Exception as e:
                     logs.append(['ERRO', e, insert])
-                    print(f"Erro ao inserir: {insert} - Erro: {e}")  # Adicione um print para depuração
+                    print(f"Erro ao inserir: {insert} - Erro: {e}")
                 
                 if (i + 1) % 10000 == 0:
                     conexao.commit()  # Use a conexão para commit
@@ -114,3 +112,14 @@ class BancoDeDados:
             conexao.close()
         
         return logs
+
+
+
+
+# EXEMPLO DE USO
+banco = BancoDados.BancoDeDados(nome_tabela='NOME_DATABASE')
+banco._criar()
+banco._truncar()
+print("Iniciar processo de inserir os dados...")
+lista_execucao_paralela = Parallel(n_jobs=5)(delayed(banco._inserir_dados)(i) for i in pacotes_importacao)
+print("Dados inseridos com sucesso!")
