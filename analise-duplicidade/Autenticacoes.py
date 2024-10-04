@@ -9,7 +9,7 @@ DB_CONFIG = {
 
     "gestao_comercial" : {   
     'driver': '{ODBC Driver 17 for SQL Server}', 
-    'servidor': 'EZZE-DB-03',
+    'servidor': '',
     'banco': '',
     'usuario': '',
     'senha': ''
