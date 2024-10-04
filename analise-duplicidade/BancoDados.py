@@ -47,33 +47,6 @@ class BancoDeDados:
         
         return consultar_dados
     
-
-    # def chamar_procedure(self, nome_procedure: str) -> pd.DataFrame:
-    #     conexao = self.conectar('gestao_comercial')
-    #     cursor = conexao.cursor()
-    #     try:
-    #         cursor.execute(f"EXEC {nome_procedure}")
-    #         rows = cursor.fetchall()
-            
-    #         # Depuração: Imprimir algumas linhas dos dados retornados
-    #         print(f"Primeiras linhas retornadas: {rows[:5]}")
-            
-    #         colunas = [desc for desc in cursor.description]
-    #         print(f"Colunas retornadas: {colunas}")
-    #         print(f"Número de colunas retornadas: {len(colunas)}")
-            
-    #         # Criar DataFrame com as colunas corretas
-    #         df = pd.DataFrame.from_records(rows, columns=colunas)
-    #         print(f"Procedure {nome_procedure} executada com sucesso.")
-    #     except Exception as e:
-    #         print(f"Erro ao executar a procedure: {e}")
-    #         return pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro para tratarmos
-    #     finally:
-    #         cursor.close()
-    #         conexao.close()
-        
-    #     return df
-
     def chamar_procedure(self, nome_procedure: str) -> pd.DataFrame:
         conexao = self.conectar('nome_database')
         cursor = conexao.cursor()
